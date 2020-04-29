@@ -1,0 +1,130 @@
+version: "2"
+services:
+  web:
+    extends:
+      file: ../../../common/docker-compose.yml
+      service: web
+    ports:
+      - 80
+    links:
+      - fpm
+      - db
+    volumes_from:
+      - appdata
+    env_file:
+      - .env
+    labels:
+      - "traefik.frontend.rule=Host:magezon.development.extensions.ce234.localhost"
+      - traefik.docker.network=proxy
+      - traefik.port=80
+    networks:
+      - proxy
+      - internal
+  
+  fpm:
+    extends:
+      file: ../../../common/docker-compose.yml
+      service: fpm
+    links:
+      - db
+    volumes_from:
+      - appdata
+    env_file:
+      - .env
+    networks:
+      - proxy
+      - internal
+
+  cli:
+    extends:
+      file: ../../../common/docker-compose.yml
+      service: cli
+    links:
+      - db
+    volumes_from:
+      - appdata
+    env_file:
+      - .env
+    networks:
+      - proxy
+      - internal
+
+  cron:
+    extends:
+      file: ../../../common/docker-compose.yml
+      service: cron
+    env_file:
+      - .env
+    environment:
+      - ENABLE_SENDMAIL=false
+    volumes_from:
+      - appdata
+    links:
+      - db
+    networks:
+      - proxy
+      - internal
+
+  db:
+    extends:
+      file: ../../../common/docker-compose.yml
+      service: db
+    ports:
+      - 3306:3306
+    volumes_from:
+      - dbdata
+    env_file:
+      - .env
+    networks:
+      - proxy
+      - internal
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    labels:
+      - "traefik.frontend.rule=Host:phpmyadmin.magezon.development.extensions.ce234.localhost"
+      - traefik.docker.network=proxy
+      - traefik.port=80
+    ports:
+      - 80
+    environment:
+      - PMA_HOST=db
+      - PMA_USER=magento2
+      - PMA_PASSWORD=magento2
+    networks:
+      - proxy
+      - internal
+
+  redis:
+    extends:
+      file: ../../../common/docker-compose.yml
+      service: redis
+    volumes:
+      - ../../../../../data/magezon.development.extensions.ce234.localhost/redis:/data
+    networks:
+      - proxy
+      - internal
+
+  appdata:
+    extends:
+      file: ../../../common/docker-compose.yml
+      service: appdata
+    volumes:
+      #- ../../../data/composer:/var/www/.composer
+      #- ../../../common/magento/auth.json:/var/www/.composer/auth.json
+      - ../../../common/magento/auth.json:/var/www/magento/auth.json
+      - ../../../../../data/magezon.development.extensions.ce234.localhost/magento:/var/www/magento
+
+  dbdata:
+    extends:
+      file: ../../../common/docker-compose.yml
+      service: dbdata
+    volumes:
+      - ../../../../../data/magezon.development.extensions.ce234.localhost/mysql:/var/lib/mysql
+
+networks:
+  proxy:
+    external:
+      name: proxy
+  internal:
+    driver: bridge
